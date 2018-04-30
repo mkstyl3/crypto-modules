@@ -1,0 +1,35 @@
+{
+  "name": "crypto-modules",
+  "version": "1.0.0",
+  "description": "Implementation of cryptosystem modules relying on bignum",
+  "main": "/examples/example-rsa.js",
+  "directories": {
+    "example": "examples",
+    "lib": "lib",
+    "test": "test"
+  },
+  "dependencies": {
+    "bignum": "^0.12.5",
+    "chai": "^4.1.2",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "mocha": "^5.1.1"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mkstyl3/crypto-modules.git"
+  },
+  "keywords": [
+    "npm"
+  ],
+  "author": "Marc Mansilla",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mkstyl3/crypto-modules/issues"
+  },
+  "homepage": "https://github.com/mkstyl3/crypto-modules#readme"
+}
