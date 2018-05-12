@@ -27,10 +27,16 @@ console.log('');
 const signed = privateKey.sign(blinded);
 console.log('signed msg: '+signed.toString());
 console.log('');
-// And Alice unblind it then
+
+
+// Alice unblind it 
 
 const unblinded = publicKey.unblind(signed);
-console.log('unblinded msg: '+unblinded.toBuffer().toString());
+console.log('unblinded msg: '+unblinded.toString(16));
 
+// And verifies it
+
+const verified = publicKey.verify(unblinded);
+console.log('verified msg: '+verified.toBuffer().toString());
 
 
