@@ -32,16 +32,16 @@ console.log('rand: '+rand.toString(16));
 const aliceSecretKey = hashKey('sha256', rand.toString(16), 'hex');
 console.log('aliceSecretKey: '+aliceSecretKey); 
 
-const encrypted = encryptMsg(aliceSecretKey, m, 'aes-256-cbc', 'utf8', 'hex');
-console.log('encrypted: '+encrypted.toString()); 
+const cryptogram = encryptMsg(aliceSecretKey, m, 'aes-256-cbc', 'utf8', 'hex');
+console.log('encrypted: '+cryptogram.toString()); 
 
 // 	Then Alice build a proof Of Origin (Po) and sends it back to Bob (proof that he is INTERESTED in the message)
 // 	Po = [H(A, B, L, C)]A
 
-const timestampAB = generateTs(new Date().toString());
+const timestampAB = generateTs();
 console.log('timestampAB: '+timestampAB.toString(16)); 
 
-const po = buildProof(alice, bob, timestampAB.toString(16), encrypted);
+const po = buildProof(alice, bob, timestampAB.toString(16), cryptogram.toString(16), 'sha256', 'hex');
 console.log('proofOfOrigin: '+po); 
 
 const signedPo = privateKeyAlice.sign(bignum(po, 16));
@@ -49,108 +49,129 @@ console.log('signedProofOfOrigin: '+signedPo.toString(16));
 
 const aToBData = {
     'timestamp': timestampAB.toString(16), 
-    'crypto': encrypted, 
-    'signedProofOfOrigin': signedPo.toString(16) 
+    'crypto': cryptogram, 
+    'signedPo': signedPo.toString(16) 
 }; console.log('aToBData: '+JSON.stringify(aToBData)); 
-
 
 //  Bob now needs to verify Po from Alice
 
-const signedPoBob = aToBData.signedProofOfOrigin;
-
-const unsignedPo = publicKeyAlice.unsign(bignum(signedPoBob, 16));
-console.log('unsignedPo'+unsignedPo.toString(16));
-
-const poVerified = verifyProof(unsignedPo.toString(16));
+const poVerified = verifyProof(aToBData, 'ab');
 console.log('poVerified: '+poVerified.toString());
 
 // 	Bob sends back a Proof of Reception (Pr) to Alice 
 // 	Pr = [H(B, A, L, C)]B  || Pr = [H(A, B, L, C)]B
 
-const timestampBA = generateTs(new Date().toString());
+const timestampBA = generateTs();
 
-const signedPr = privateKeyBob.sign(unsignedPo)
-console.log('ProofOfReception: '+signedPr.toString(16));
+const pr = buildProof(bob, alice, timestampBA.toString(16), aToBData.crypto.toString(16), 'sha256', 'hex');
+console.log('pr: '+ pr); 
+
+const signedPr = privateKeyBob.sign(bignum(pr, 16));
+console.log('signedPr: '+signedPr.toString(16));
 
 const bToAData = {
-    'timestamp': timestampBA.toString(16), // signed by from TTP
+    'timestamp': timestampBA.toString(16), 
     'signedPr': signedPr.toString(16) //Po = [H(A, B, L, C)]A
 };
 
 // Alice when receives Pr, needs to verify it first
-
-const signedPrAlice = bToAData.signedPr;
-
-const unsignedPr = publicKeyBob.unsign(bignum(signedPrAlice, 16));
-console.log('unsignedPr'+unsignedPr.toString(16));
-
-const prVerified = verifyProof(unsignedPr.toString(16));
+const prVerified = verifyProof(bToAData, 'ba');
 console.log('prVerified: '+prVerified.toString());
+
 
 // 	Then, Alice sends the key to the TTP which encrypts the message m and a proof of Origin Of Key (Pko)
 //	Pko = [H(A, TTP, B, L, K)] A
 
-const timestampATTP = privateKeyTTP.sign(bignum.fromBuffer(Buffer.from((new Date()).toString())));
-const encryptedAliceSecretKey = publicKeyTTP.encrypt(bignum.fromBuffer(Buffer.from(aliceSecretKey)));
+const timestampATTP = generateTs();
+const encryptedAliceSecretKey = publicKeyTTP.encrypt(stringToBignum(aliceSecretKey));
 console.log('encryptedAliceSecretKey: '+encryptedAliceSecretKey.toString(16)); 
-
-const proofOfOriginOfK = crypto.createHash('sha256').update(alice.concat(ttp).concat(bob).concat(timestampATTP).concat(aliceSecretKey), 'utf8').digest('hex');
-const signedProofOfOriginOfK = privateKeyAlice.sign(bignum(proofOfOriginOfK, 16));
+console.log('timestampATTP.toString(16): '+timestampATTP.toString(16));
+		
+const pko = buildProofTTP(ttp, alice, bob, timestampATTP.toString(16), encryptedAliceSecretKey.toString(16), 'sha256', 'hex');
+const signedPko = privateKeyAlice.sign(bignum(pko, 16));
 
 const aToTTPData = {
-	'timestamp': timestampATTP.toString(16), // signed by from TTP
-	'k' : encryptedAliceSecretKey.toString(16),
-    'signedProofOfReception': signedPr.toString(16) //Po = [H(A, B, L, C)]A
+	'origin' : alice,
+	'dest' : bob,
+	'timestamp': timestampATTP.toString(16), 
+	'k' : encryptedAliceSecretKey,
+    'signedPko': signedPko.toString(16) //Po = [H(A, B, L, C)]A
 };
 console.log('aToTTPData: '+JSON.stringify(aToTTPData)); 
 
-// 	TTP when receives the alice key, publish it expecting that bob get it (in this case
-//	we are going to send it to both Alice and Bob )
+// TTP must verify Pko
 
-const timestampTTP = privateKeyTTP.sign(bignum.fromBuffer(Buffer.from((new Date()).toString()))); // 1 for both, like in a publication
+const pkoVerified = verifyProof(aToTTPData, 'attp');
+console.log('pkoVerified: '+pkoVerified.toString());
+
+const signedPkoAlice = aToTTPData.signedPko;
+
+const unsignedPko = publicKeyTTP.unsign(bignum(signedPkoAlice, 16));
+console.log('unsignedPko: '+unsignedPko.toString(16));
+
+// Then, publish it expecting that bob get it (in this case
+// we are going to send it to Bob and Alice with the Pkp).
+// First to Alice
+
+const timestampTTPA = generateTs(); 
 const decryptedAliceSecretKey = privateKeyTTP.decrypt(bignum(aToTTPData.k, 16));
 console.log('decryptedAliceSecretKey: '+decryptedAliceSecretKey.toBuffer()); // Important to use buffer 
 
 const encryptedAliceSecretKeyFinalA = publicKeyAlice.encrypt(decryptedAliceSecretKey);
 
-const proofOfPublicationOfKA = crypto.createHash('sha256').update(ttp.concat(alice).concat(bob).concat(timestampTTP).concat(encryptedAliceSecretKeyFinalA.toString(16)), 'utf8').digest('hex');
-const signedproofOfPublicationOfKA = privateKeyTTP.sign(bignum(proofOfPublicationOfKA, 16));
+const pkpToAlice = buildProofTTP(ttp, alice, bob, timestampTTPA.toString(16), encryptedAliceSecretKeyFinalA.toString(16), 'sha256', 'hex');
+console.log('pkp = buildProofTTP: '+pkpToAlice); // Important to use buffer 
+
+const signedPkpToAlice = privateKeyTTP.sign(bignum(pkpToAlice, 16));
 
 const tTPtoAData = {
-	'timestamp': timestampTTP.toString(16), // signed by from TTP
-	'k' : encryptedAliceSecretKeyFinalA.toString(16),
-    'signedproofOfPublicationOfK': signedproofOfPublicationOfKA.toString(16) // Pkp = [H(TTP, A, B, L, K)] TTP
+	'timestamp': timestampTTPA.toString(16), 
+	'k' : encryptedAliceSecretKeyFinalA,
+    'signedPkpToAlice': signedPkpToAlice.toString(16) // Pkp = [H(TTP, A, B, L, K)] TTP
 };
 console.log('tTPtoAData: '+JSON.stringify(tTPtoAData)); 
 
-// The same with Bob
+// Alice Verifies Proof of Publication from TTP
 
-const encryptedAliceSecretKeyFinalB = publicKeyBob.encrypt(decryptedAliceSecretKey);
+const pkpVerifiedByA = verifyProof(tTPtoAData, 'ttpa');
+console.log('pkpVerified: '+pkpVerifiedByA.toString());
 
-const proofOfPublicationOfKB = crypto.createHash('sha256').update(ttp.concat(alice).concat(bob).concat(timestampTTP).concat(encryptedAliceSecretKeyFinalB.toString(16)), 'utf8').digest('hex');
-const signedproofOfPublicationOfKB = privateKeyTTP.sign(bignum(proofOfPublicationOfKB, 16));
+const signedPkpToAliceReceived = tTPtoAData.signedPkpToAlice;
+
+const unsignedPkpToA = publicKeyTTP.unsign(bignum(signedPkpToAliceReceived, 16));
+console.log('unsignedPko: '+unsignedPko.toString(16));
+
+
+// Then, to Bob
+
+const encryptedAliceSecretKeyToBob = publicKeyBob.encrypt(decryptedAliceSecretKey);
+const pkpToBob = buildProofTTP(ttp, alice, bob, timestampTTPA.toString(16), encryptedAliceSecretKeyToBob.toString(16), 'sha256', 'hex');
+console.log('pkp = buildProofTTP: '+pkpToBob); // Important to use buffer 
+const signedPkpToBob = privateKeyTTP.sign(bignum(pkpToBob, 16));
 
 const tTPtoBData = {
-	'timestamp': timestampTTP.toString(16), // signed by from TTP
-	'k' : encryptedAliceSecretKeyFinalB.toString(16),
-    'signedproofOfPublicationOfKB': signedproofOfPublicationOfKB.toString(16) // Pkp = [H(TTP, A, B, L, K)] TTP
+	'timestamp': timestampTTPA.toString(16), 
+	'k' : encryptedAliceSecretKeyToBob,
+    'signedPkpToBob': signedPkpToBob.toString(16) // Pkp = [H(TTP, A, B, L, K)] TTP
 };
 console.log('tTPtoBData: '+JSON.stringify(tTPtoBData)); 
 
-// Then Bob receives K can fully decrypt the message
+// Then Bob verifies the pkp
 
-const decryptedAliceSecretKeyFinalB = privateKeyBob.decrypt(bignum(tTPtoBData.k, 16));
-console.log('decryptedAliceSecretKeyFinalB: '+decryptedAliceSecretKeyFinalB);
+const pkpVerifiedByBob = verifyProof(tTPtoBData, 'ttpb');
+console.log('pkpVerifiedByBob: '+pkpVerifiedByBob.toString());
 
-console.log('encryptedAliceSecretKeyFinalB: '+encryptedAliceSecretKeyFinalB.toString(16));
-console.log('encrypted: '+encrypted);
-let decipher = crypto.createDecipher('aes-256-cbc', Buffer.from(decryptedAliceSecretKeyFinalB.toBuffer().toString(), 'hex'));
-let decrypted = decipher.update(aToBData.crypto, 'hex', 'utf8');
-decrypted += decipher.final('utf8');
+const signedPkpToBobReceived = tTPtoBData.signedPkpToBob;
+
+const unsignedPkpToBob = publicKeyTTP.unsign(bignum(signedPkpToBobReceived, 16));
+console.log('unsignedPkpToBob: '+unsignedPkpToBob.toString(16));
+
+// Then Bob receives K can decrypt the message
+const decrypted = decrypt(tTPtoBData.k, aToBData.crypto, 'aes-256-cbc', 'hex', 'utf8');
 console.log('');
-console.log('message in Bob: '+decrypted);
+console.log('message in Bob: '+ decrypted);
 
-// The same for Alice (not implemented)
+// Helpers
 
 function toHex(str) {
 	var hex = '';
@@ -160,11 +181,7 @@ function toHex(str) {
 	return hex;
 };
 
-function buildProofTTP(ttp, client, server, l, m) {
-	return crypto.createHash('sha256').update(ttp.concat(client).concat(server).concat(l).concat(m.toString(16)), 'utf8').digest('hex');
-};
-
-function stringToBignum(bignum, string) {
+function stringToBignum(string) {
 	return bignum.fromBuffer(Buffer.from(string));
 }
 
@@ -178,25 +195,75 @@ function encryptMsg(secret, m, algorithm, inputEncoding, outputEncoding) {
 	return encrypted += cipher.final(outputEncoding);	
 }
 
-function generateTs(string) {
-	return stringToBignum(bignum, string);
+function decrypt(key, m, algorithm, inputEncoding, outputEncoding) {
+	const decryptedAliceSecretKeyToBob = privateKeyBob.decrypt(bignum(key, 16));
+	let decipher = crypto.createDecipher(algorithm, Buffer.from(decryptedAliceSecretKeyToBob.toBuffer().toString(), inputEncoding));
+	let decrypted = decipher.update(m, inputEncoding, outputEncoding);
+	decrypted += decipher.final(outputEncoding);
+	return decrypted;
 }
 
-function buildProof(origin, dest, l, m) {
+function generateTs() {
+	return stringToBignum(new Date().toString());
+}
+
+function buildProof(origin, dest, l, m, algorithm, outputEncoding) {
 	const key = origin.concat(dest).concat(l).concat(m);
-	return hashKey('sha256',key, 'hex');
+	return hashKey(algorithm, key, outputEncoding);
 }
 
-function verifyProof(po) { 
-	const testProof = buildProof(alice, bob, aToBData.timestamp, aToBData.crypto);
-	if(testProof === po) {
+function buildProofTTP(ttp, origin, dest, l, m, algorithm, outputEncoding) {
+	const key = ttp.concat(origin).concat(dest).concat(l).concat(m);
+	return hashKey(algorithm, key, outputEncoding);
+};
+
+function verifyProof(proof, channel) { 
+	let testProof , signedProof, unsignedProof;
+	switch (channel) {
+		case 'ab':
+			signedProof = proof.signedPo;
+			unsignedProof = publicKeyAlice.unsign(bignum(signedProof, 16));
+			console.log('unsignedPo: '+unsignedProof.toString(16));
+			testProof = buildProof(alice, bob, proof.timestamp, proof.crypto, 'sha256', 'hex');
+			console.log('testProof: '+testProof);
+			break;
+		case 'ba': 
+			signedProof = proof.signedPr;
+			unsignedProof = publicKeyBob.unsign(bignum(signedProof, 16));
+			console.log('unsignedPr: '+unsignedProof.toString(16));
+			testProof = buildProof(bob, alice, proof.timestamp, cryptogram, 'sha256', 'hex');
+			console.log('testProof: '+testProof);
+			break;
+ 		case 'attp': 
+ 			signedProof = proof.signedPko;
+ 			unsignedProof = publicKeyAlice.unsign(bignum(signedProof, 16)); 
+			console.log('unsignedPko: '+unsignedProof.toString(16));
+			testProof = buildProofTTP(ttp, proof.origin, proof.dest, proof.timestamp, proof.k, 'sha256', 'hex');
+			console.log('testProof: '+testProof);
+			break;
+		case 'ttpa': 
+			signedProof = proof.signedPkpToAlice;
+			unsignedProof = publicKeyTTP.unsign(bignum(signedProof, 16)); 
+		   	console.log('unsignedPkpToAlice: '+unsignedProof.toString(16));
+		   	testProof = buildProofTTP(ttp, alice, bob, proof.timestamp, proof.k, 'sha256', 'hex');
+			console.log('pkp = buildProofTTP: '+pkpToAlice); // Important to use buffer    
+			console.log('testProof: '+testProof);
+			break;
+		case 'ttpb': 
+			signedProof = proof.signedPkpToBob;
+			unsignedProof = publicKeyTTP.unsign(bignum(signedProof, 16)); 
+		   	console.log('unsignedPkpToBob: '+unsignedProof.toString(16));
+		   	testProof = buildProofTTP(ttp, alice, bob, proof.timestamp, proof.k, 'sha256', 'hex');
+			console.log('pkp = buildProofTTP: '+pkpToBob); // Important to use buffer    
+			console.log('testProof: '+testProof);
+			break;
+	}
+	
+	if (testProof === unsignedProof.toString(16)) {
 		return true;
 	} 
-	return false;
+	return false;		
 }
-
-
-
 
 
 
