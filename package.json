@@ -10,8 +10,7 @@
   },
   "dependencies": {
     "bignum": "^0.12.5",
-    "chai": "^4.1.2",
-    "crypto": "^1.0.1"
+    "chai": "^4.1.2"
   },
   "devDependencies": {
     "mocha": "^5.1.1"

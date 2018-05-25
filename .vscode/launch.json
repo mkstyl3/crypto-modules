@@ -22,6 +22,12 @@
             "request": "launch",
             "name": "NonRepudiation",
             "program": "${workspaceFolder}/examples/non-repudiation.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "SSS",
+            "program": "${workspaceFolder}/examples/secret-sharing.js"
         }
     ]
 }

@@ -29,7 +29,7 @@ console.log('rand: '+rand.toString(16));
 
 // 	Alice encrypts the message m with a hash of a random number
 
-const aliceSecretKey = hashKey('sha256', rand.toString(16), 'hex');
+const aliceSecretKey = hashKey('sha256', rand.toBuffer(), 'hex');
 console.log('aliceSecretKey: '+aliceSecretKey); 
 
 const cryptogram = encryptMsg(aliceSecretKey, m, 'aes-256-cbc', 'utf8', 'hex');
@@ -75,6 +75,7 @@ const bToAData = {
 };
 
 // Alice when receives Pr, needs to verify it first
+
 const prVerified = verifyProof(bToAData, 'ba');
 console.log('prVerified: '+prVerified.toString());
 
@@ -94,7 +95,7 @@ const aToTTPData = {
 	'origin' : alice,
 	'dest' : bob,
 	'timestamp': timestampATTP.toString(16), 
-	'k' : encryptedAliceSecretKey,
+	'k' : encryptedAliceSecretKey.toString(16),
     'signedPko': signedPko.toString(16) //Po = [H(A, B, L, C)]A
 };
 console.log('aToTTPData: '+JSON.stringify(aToTTPData)); 
@@ -126,7 +127,7 @@ const signedPkpToAlice = privateKeyTTP.sign(bignum(pkpToAlice, 16));
 
 const tTPtoAData = {
 	'timestamp': timestampTTPA.toString(16), 
-	'k' : encryptedAliceSecretKeyFinalA,
+	'k' : encryptedAliceSecretKeyFinalA.toString(16),
     'signedPkpToAlice': signedPkpToAlice.toString(16) // Pkp = [H(TTP, A, B, L, K)] TTP
 };
 console.log('tTPtoAData: '+JSON.stringify(tTPtoAData)); 
@@ -151,7 +152,7 @@ const signedPkpToBob = privateKeyTTP.sign(bignum(pkpToBob, 16));
 
 const tTPtoBData = {
 	'timestamp': timestampTTPA.toString(16), 
-	'k' : encryptedAliceSecretKeyToBob,
+	'k' : encryptedAliceSecretKeyToBob.toString(16),
     'signedPkpToBob': signedPkpToBob.toString(16) // Pkp = [H(TTP, A, B, L, K)] TTP
 };
 console.log('tTPtoBData: '+JSON.stringify(tTPtoBData)); 
@@ -186,7 +187,7 @@ function stringToBignum(string) {
 }
 
 function hashKey(algorithm, key, base) {
-	return crypto.createHash(algorithm).update(key, base).digest(base);
+	return crypto.createHash(algorithm).update(key).digest(base);
 }
 
 function encryptMsg(secret, m, algorithm, inputEncoding, outputEncoding) {
@@ -208,12 +209,12 @@ function generateTs() {
 }
 
 function buildProof(origin, dest, l, m, algorithm, outputEncoding) {
-	const key = origin.concat(dest).concat(l).concat(m);
+	const key = Buffer.from(origin.concat(dest).concat(l).concat(m));
 	return hashKey(algorithm, key, outputEncoding);
 }
 
 function buildProofTTP(ttp, origin, dest, l, m, algorithm, outputEncoding) {
-	const key = ttp.concat(origin).concat(dest).concat(l).concat(m);
+	const key = Buffer.from(ttp.concat(origin).concat(dest).concat(l).concat(m));
 	return hashKey(algorithm, key, outputEncoding);
 };
 

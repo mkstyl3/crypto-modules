@@ -19,7 +19,7 @@ console.log('message: '+m);
 console.log('');
 // Alice must find the blind the message
 //
-const blinded = publicKey.blind(bignum.fromBuffer(Buffer.from(m)));
+const {f , blinded} = publicKey.blind(bignum.fromBuffer(Buffer.from(m)));
 console.log('blinded msg: '+blinded.toString());
 console.log('');
 // Bob now need to sign it
@@ -31,7 +31,7 @@ console.log('');
 
 // Alice unblind it 
 
-const unblinded = publicKey.unblind(signed);
+const unblinded = publicKey.unblind(signed, f);
 console.log('unblinded msg: '+unblinded.toString(16));
 
 // And verifies it
