@@ -38,16 +38,47 @@ function build(t, n, k, p) {
     return Fx;
 }
 
- function lagrangeInterpolation(sharesArray, sharesPosition){
+function multiply(a,b) {
+    if(a == null) {
+        return b;
+    } else {
+        return a*b;
+    }
+}
+
+function f(keys) {
+    var result = 0;
+    for(var i=0;i<keys.length;i++) {
+        console.log(keys[i]);
+        var result_i = null;
+        for(let j=0;j<keys.length;j++) {
+            if(j==i) {
+                console.log("K ",keys[j]);
+                result_i = multiply(result_i, keys[j]);
+            } else {
+                console.log("NUM ", keys[j])
+                console.log("DEN ", keys[j], " - ", keys[i])
+                result_i = multiply(result_i,( keys[j] / (keys[j] - keys[i] ) ));
+            }
+        }
+        result = result + result_i;
+    }
+    return result;
+}
+
+var k = [1,2,4];
+console.log(f(k));
+
+ /*function lagrangeInterpolation(keys, keysPositions){
     let num;
-    let sharesLength = sharesArray.length;
+    let sharesLength = keys.length;
     let k;
     if (sharesLength > this.t) throw console.error('only t keys');
     
     for (let i=0; i<sharesLength; i++) {
         for (let j=1; j<sharesLength; j++) {
-             num *= sharesPosition[j];
-             den *= sharesPosition[j]-sharesPosition[i];       
+             num *= keysPositions[j];
+             den *= keysPositions[j]-keysPositions[i];       
         }
         polynomial.push(monomial);
         
@@ -55,20 +86,6 @@ function build(t, n, k, p) {
 
 
  }
-    console.log(LagrangeFormaI(new Array(1,2,4)));
-    function LagrangeFormaI(x) {
-		var suma = 0;
-		for (var i = 0; i < N; i++) {
-			var produs = y_array[i];
-			for (var j = 0; j < N; j++) {
-				if (i != j) {
-					produs *= ( (x - x_array[j]) / (x_array[i] - x_array[j]) );
-				}
-			}
-			suma += produs;
-		}
-		return suma;
-	}
     
 
 /*
