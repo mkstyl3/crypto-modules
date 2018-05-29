@@ -51,14 +51,14 @@ function f(keys) {
     for(var i=0;i<keys.length;i++) {
         console.log(keys[i]);
         var result_i = null;
-        for(let j=0;j<keys.length;j++) {
+        for(let j=0;j<k_positions_correlative.length;j++) {
             if(j==i) {
-                console.log("K ",keys[j]);
-                result_i = multiply(result_i, keys[j]);
+                console.log("K ",k_positions_correlative[j]);
+                result_i = multiply(result_i, k_positions_correlative[j]);
             } else {
-                console.log("NUM ", keys[j])
-                console.log("DEN ", keys[j], " - ", keys[i])
-                result_i = multiply(result_i,( keys[j] / (keys[j] - keys[i] ) ));
+                console.log("NUM ", k_positions_correlative[j])
+                console.log("DEN ", k_positions_correlative[j], " - ", k_positions_correlative[i])
+                result_i = multiply(result_i,( k_positions_correlative[j] / (k_positions_correlative[j] - keys[i] ) ));
             }
         }
         result = result + result_i;
@@ -66,7 +66,8 @@ function f(keys) {
     return result;
 }
 
-var k = [1,2,4];
+var k = [9, 4, 2];
+var k_positions_correlative = [1, 2, 4] 
 console.log(f(k));
 
  /*function lagrangeInterpolation(keys, keysPositions){
