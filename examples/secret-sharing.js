@@ -38,37 +38,47 @@ function build(t, n, k, p) {
     return Fx;
 }
 
-function multiply(a,b) {
-    if(a == null) {
-        return b;
-    } else {
-        return a*b;
-    }
-}
 
-function f(keys) {
-    var result = 0;
+
+function f(keys, k_positions_correlative, p) {
+    var result_i = bignum(0);
     for(var i=0;i<keys.length;i++) {
-        console.log(keys[i]);
-        var result_i = null;
+        var result_j = bignum(1);
         for(let j=0;j<k_positions_correlative.length;j++) {
             if(j==i) {
-                console.log("K ",k_positions_correlative[j]);
-                result_i = multiply(result_i, k_positions_correlative[j]);
+                result_j = result_j.mul(keys[j]);
             } else {
-                console.log("NUM ", k_positions_correlative[j])
-                console.log("DEN ", k_positions_correlative[j], " - ", k_positions_correlative[i])
-                result_i = multiply(result_i,( k_positions_correlative[j] / (k_positions_correlative[j] - keys[i] ) ));
+                let proba;
+                console.log("proba"+ (proba = bignum(1).invertm(17)));
+                const num = k_positions_correlative[j].mod(p);
+                const den = k_positions_correlative[j].sub(k_positions_correlative[i]);
+                console.log('num'+j+': '+num);
+                console.log('den'+j+': '+den);
+                const invDenMod = (k_positions_correlative[j].sub(k_positions_correlative[i])).invertm(p); // Intermedian step  
+                console.log('p'+j+': '+p);
+                console.log('invDenMod'+j+': '+invDenMod);
+                console.log('k_positions_correlative[j])'+j+': '+k_positions_correlative[j]);
+                console.log('k_positions_correlative[i])'+j+': '+k_positions_correlative[i]);
+                const mon2 = num.mul(invDenMod);
+                const mon = num.mul(invDenMod);
+                console.log('monomial2'+j+': '+mon2);
+                console.log('monomial'+j+': '+mon);
+                result_j = result_j.mul(mon);
+                console.log('mon*prev_mon'+j+': '+result_j);
             }
         }
-        result = result + result_i;
+        console.log('now: '+result_j);
+        result_i = result_i.add(result_j);
+        console.log(result_i.toString(10));
     }
-    return result;
+    console.log(result_i.mod(p).toString(10));
+    return result_i.mod(p);
 }
 
-var k = [9, 4, 2];
-var k_positions_correlative = [1, 2, 4] 
-console.log(f(k));
+var k = [bignum(9), bignum(4), bignum(2)];
+var k_positions_correlative = [bignum(1), bignum(2), bignum(4)];
+const p = bignum(17);
+console.log(f(k,k_positions_correlative,p));
 
  /*function lagrangeInterpolation(keys, keysPositions){
     let num;
