@@ -5,7 +5,7 @@ const bignum = require('bignum');
 /**
  * 	Simple implementation of Shamir's Secret Sharing (SSS) for nodeJS
  */
-
+ 
 const BITLENGHT = 2048;
 
 /*
@@ -14,94 +14,120 @@ n: number of shares
 k: stand-alone value of the polynomial
 p: polynomial will be evaluated at mod p
 */
-console.log(build(3,5,11,17));
+
+
+
+
+class Key {
+    constructor(value, position) {
+      this.value = value;
+      this.position = position;
+    }
+}
+
+const keys = build(bignum(3), bignum(5), bignum(11), bignum(17));
+console.log('keys: '+keys);
+
+ // for instance
+
+
+
+const k = [new Key(bignum(9),1), new Key(bignum(4),2), new Key(bignum(2),4)];
+console.log('k: '+k);
+const k_positions_correlative = [bignum(1), bignum(2), bignum(4)];
+console.log('keyPosArray: '+k_positions_correlative);
+const kFinal = f(k, k_positions_correlative, 17);
+console.log('kFinal: '+kFinal);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function build(t, n, k, p) {
-    let polynomial = [], Fx = [], coef = 0, xPow = 0, monomial = 0;
+    let polynomial = [], Fx = [], coef, xPow, monomial;
     
-    if (k > p) {
+    if (k.gt(p)) {
         return new Error("k must be smaller than p")
     }
     // Generate shares
     for (let i=0; i<n; i++) {
         for (let j=1; j<t; j++) {
-            if (j==1) coef = 8;
-            else if (j==2) coef = 7;
-            xPow = Math.pow(i+1, j);
-            monomial = coef*xPow;
+            if (j==1) coef = bignum(8);
+            else if (j==2) coef = bignum(7);
+            xPow = bignum(i+1).pow(j);
+            
+            //console.log(xPow = Math.pow(i+1, j));
+            monomial = coef.mul(xPow);
+            console.log('monomial: '+ monomial);
+            //console.log(monomial = coef*xPow);
             polynomial.push(monomial);
         }
-        let sum = polynomial.reduce((a, b) => a + b, 0);
+        //let sum = polynomial.reduce((a, b) => a + b, 0);
+            //combine the coefficients to get the secret
+        //let sum = polynomial.reduce((first, next) => first.add(next), 0);
+        let sum = polynomial.reduce((a, b) => a.add(b));
         polynomial = [];
-        Fx.push(k+sum);
+        Fx.push(new Key((k.add(sum)).mod(p), i+1));
     }
     
     return Fx;
 }
 
-
-
 function f(keys, k_positions_correlative, p) {
-    var result_i = bignum(0);
+    let monomial_i = [], monomial_j, isNeg;
     for(var i=0;i<keys.length;i++) {
-        var result_j = bignum(1);
+        let num = bignum(1),  den = bignum(1),  den_inv;
         for(let j=0;j<k_positions_correlative.length;j++) {
+            let monomial;
             if(j==i) {
-                result_j = result_j.mul(keys[j]);
+                console.log('keys[j].value'+j+': '+keys[j].value);
+                console.log('num'+j+': '+num);
+                num = num.mul((keys[j].value));
+                console.log('num'+j+': '+num);
             } else {
-                let proba;
-                console.log("proba"+ (proba = bignum(1).invertm(17)));
-                const num = k_positions_correlative[j].mod(p);
-                const den = k_positions_correlative[j].sub(k_positions_correlative[i]);
+                num = num.mul(k_positions_correlative[j]);
+                den = den.mul(k_positions_correlative[j].sub(k_positions_correlative[i]));
                 console.log('num'+j+': '+num);
                 console.log('den'+j+': '+den);
-                const invDenMod = (k_positions_correlative[j].sub(k_positions_correlative[i])).invertm(p); // Intermedian step  
                 console.log('p'+j+': '+p);
-                console.log('invDenMod'+j+': '+invDenMod);
                 console.log('k_positions_correlative[j])'+j+': '+k_positions_correlative[j]);
                 console.log('k_positions_correlative[i])'+j+': '+k_positions_correlative[i]);
-                const mon2 = num.mul(invDenMod);
-                const mon = num.mul(invDenMod);
-                console.log('monomial2'+j+': '+mon2);
-                console.log('monomial'+j+': '+mon);
-                result_j = result_j.mul(mon);
-                console.log('mon*prev_mon'+j+': '+result_j);
             }
         }
-        console.log('now: '+result_j);
-        result_i = result_i.add(result_j);
-        console.log(result_i.toString(10));
+        den_inv = den.invertm(p); // Intermedian step  
+        console.log('den_inv: '+den_inv);
+        monomial_j = num.mul(den_inv);
+        monomial_i.push(monomial_j);
+        console.log(monomial_i.toString(10));
     }
-    console.log(result_i.mod(p).toString(10));
-    return result_i.mod(p);
+    console.log((monomial_i).toString(10));
+    let sum = monomial_i.reduce((a, b) => a.add(b));
+    
+    return sum.mod(p);
 }
 
-var k = [bignum(9), bignum(4), bignum(2)];
-var k_positions_correlative = [bignum(1), bignum(2), bignum(4)];
-const p = bignum(17);
-console.log(f(k,k_positions_correlative,p));
-
- /*function lagrangeInterpolation(keys, keysPositions){
-    let num;
-    let sharesLength = keys.length;
-    let k;
-    if (sharesLength > this.t) throw console.error('only t keys');
-    
-    for (let i=0; i<sharesLength; i++) {
-        for (let j=1; j<sharesLength; j++) {
-             num *= keysPositions[j];
-             den *= keysPositions[j]-keysPositions[i];       
-        }
-        polynomial.push(monomial);
-        
+function generateKeyPosArray (keys) {
+    let keyPositionsArray = [];
+    for (let i=1; i<keys.length; i++) {
+        keyPositionsArray.push(keys.position);
     }
 
+    return keyPositionsArray;
+}
 
- }
-    
-
-/*
-Generate prime numbers
-*/
 function generateLargePrime(bitLength) {
     let p;
     do {
@@ -111,4 +137,6 @@ function generateLargePrime(bitLength) {
 
     return p;
 }
+
+
 
